@@ -39,15 +39,27 @@ const vertexShader=`
  varying float vFace;
  uniform float separation;
  uniform float thickness;
+ uniform sampler2D waveBasis;
+ uniform float waveEnabled;
+ uniform vec3 wavePhase;
+ uniform vec3 waveWeights;
+ float field(vec2 at){
+  vec3 basis=texture2D(waveBasis,clamp(at,vec2(.005),vec2(.995))).rgb*2.-1.;
+  return dot(basis,waveWeights*cos(wavePhase));
+ }
  mat3 rx(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,s,0.,-s,c);}
  mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
  mat3 rz(float a){float c=cos(a),s=sin(a);return mat3(c,s,0.,-s,c,0.,0.,0.,1.);}
  void main(){
-  mat3 rotation=rz(cellRandom.z*.26*separation)*ry(cellRandom.y*.95*separation)*rx(cellRandom.x*.85*separation);
+  vec2 waveAt=cellCenter/vec2(736.,737.)+.5;
+  float crest=field(waveAt)*waveEnabled;
+  float slopeX=(field(waveAt+vec2(.035,0.))-field(waveAt-vec2(.035,0.)))*waveEnabled;
+  float slopeY=(field(waveAt+vec2(0.,.035))-field(waveAt-vec2(0.,.035)))*waveEnabled;
+  mat3 rotation=rz(cellRandom.z*.26*separation)*ry(cellRandom.y*.95*separation-slopeX*1.5)*rx(cellRandom.x*.85*separation+slopeY*1.5);
   vec3 p=position; p.z-=thickness*.5;
   p=rotation*p*(1.-.10*separation);p.z+=thickness*.5;
   p.xy+=cellCenter*(1.+.48*separation)+cellRandom.xy*30.*separation;
-  p.z+=cellRandom.z*145.*separation-thickness;
+  p.z+=cellRandom.z*145.*separation-thickness+crest*150.;
   vUv=uv;vFace=normal.z;vNormal=normalize(normalMatrix*rotation*normal);
   gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
  }
@@ -74,9 +86,19 @@ export class FractureScene {
   this.renderer.setSize(W*2,H*2,false);this.renderer.setClearColor(0xffffff);this.renderer.outputColorSpace=THREE.SRGBColorSpace;
   this.scene=new THREE.Scene();this.root=new THREE.Group();this.scene.add(this.root);
   this.camera=new THREE.PerspectiveCamera(38,W/H,1,4000);this.distance=(H/2)/Math.tan(38*Math.PI/360);this.camera.position.z=this.distance;
-  this.material=new THREE.ShaderMaterial({vertexShader,fragmentShader,uniforms:{photograph:{value:null},separation:{value:0},thickness:{value:30}},side:THREE.DoubleSide});
+  this.material=new THREE.ShaderMaterial({vertexShader,fragmentShader,uniforms:{photograph:{value:null},separation:{value:0},thickness:{value:30},waveBasis:{value:null},waveEnabled:{value:0},wavePhase:{value:new THREE.Vector3()},waveWeights:{value:new THREE.Vector3()}},side:THREE.DoubleSide});
   this.lineMaterial=new THREE.ShaderMaterial({vertexShader,fragmentShader:'void main(){gl_FragColor=vec4(.35,.47,.54,.42);}',uniforms:this.material.uniforms,transparent:true,depthWrite:false});
   this.cache=new Map();this.yaw=0;this.pitch=0;this.texture=null;
+ }
+ async loadWave(){
+  const response=await fetch('wave-model.json');if(!response.ok)throw Error('wave model');
+  const model=await response.json();
+  const texture=await new THREE.TextureLoader().loadAsync('wave-basis.png');
+  texture.flipY=false;texture.minFilter=THREE.LinearFilter;texture.magFilter=THREE.LinearFilter;texture.generateMipmaps=false;
+  this.material.uniforms.waveBasis.value=texture;
+  const weights=model.basisScales.map((v,i)=>v*model.coefficients[i]);const sum=weights.reduce((a,b)=>a+b,0);
+  this.material.uniforms.waveWeights.value.set(...weights.map(v=>v/sum));
+  this.waveEnergies=model.relativeEnergiesHartree;
  }
  setPhoto(canvas){
   for(const item of this.cache.values()){item.mesh.geometry.dispose();item.lines.geometry.dispose();}
@@ -110,8 +132,10 @@ export class FractureScene {
   const mesh=new THREE.Mesh(createGeometry(arrays),this.material),lines=new THREE.LineSegments(createGeometry(lineArrays),this.lineMaterial);mesh.frustumCulled=false;lines.frustumCulled=false;lines.renderOrder=1;
   const item={mesh,lines,depth};this.cache.set(level.seeds,item);return item;
  }
- draw(level,amount,boundaries){
+ draw(level,amount,boundaries,wave=false,time=0){
   const item=this.cache.get(level.seeds)||this.build(level);this.root.clear();this.root.add(item.mesh);if(boundaries)this.root.add(item.lines);
+  this.material.uniforms.waveEnabled.value=wave?1:0;
+  if(this.waveEnergies)this.material.uniforms.wavePhase.value.set(...this.waveEnergies.map(e=>e*time*4));
   this.material.uniforms.separation.value=amount;this.material.uniforms.thickness.value=item.depth;
   this.root.rotation.set(this.pitch,this.yaw,0);this.root.scale.setScalar(1/(1+.54*amount));
   this.renderer.render(this.scene,this.camera);return this.renderer.domElement;

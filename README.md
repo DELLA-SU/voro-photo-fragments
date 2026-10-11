@@ -19,3 +19,11 @@ Bundled browser libraries: Three.js 0.180.0 (dist/vendor/THREE-LICENSE.txt) and 
 https://della-su.github.io/voro-photo-fragments/
 
 GitHub Actions deploys the static dist/ directory to GitHub Pages after each push to main. Images selected by visitors stay in their browser and disappear when the page is reloaded.
+
+## Wave mode (QMsolve)
+
+`파동 모드` toggles a continuously evolving 2D quantum harmonic-oscillator superposition. The playback button pauses/resumes the wave; original comparison pauses rendering and returning resumes it. Separation, density, boundaries, rotation and PNG export continue to work. The mode starts off; reduced-motion visitors see a static field until explicitly playing. WebGL is required for this mode.
+
+Generate `dist/wave-basis.png` and `dist/wave-model.json` with `scripts/generate_wave.py` using dependencies in `scripts/wave-requirements.txt`. QMsolve 2.0.0 solves the lowest three eigenstates on a 96×96 grid, in a 2D anisotropic harmonic potential. RGB stores the individually scaled real eigenfunctions. The browser uses the computed relative energies to evolve their normalized superposition, then maps its real part into each fragment's depth and finite spatial differences into tilt. Subtracting the ground energy removes a common phase. Playback time is slowed for viewing. This is an artistic depiction of a computed wavefunction, not quantum/classical mechanics of solid photo fragments. The browser shader uses one shared field sample per cell, so each Voronoi piece remains rigid.
+
+QMsolve: https://github.com/quantum-visualizations/qmsolve (BSD-3-Clause; license in `dist/QMSOLVE-LICENSE.txt`). No Python server is required at runtime.

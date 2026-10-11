@@ -1,0 +1,32 @@
+{
+  "generator": "qmsolve 2.0.0",
+  "model": "2D anisotropic harmonic oscillator",
+  "N": 96,
+  "extent": 12.0,
+  "frequencies": [
+    0.24,
+    0.31
+  ],
+  "energiesHartree": [
+    0.27793282050322293,
+    0.5218222664418247,
+    0.5912288097562862
+  ],
+  "relativeEnergiesHartree": [
+    0.0,
+    0.2438894459386018,
+    0.3132959892530633
+  ],
+  "basisScales": [
+    0.2961685525284445,
+    0.2553432591470959,
+    0.2543302218716981
+  ],
+  "coefficients": [
+    0.580232139287367,
+    0.580232139287367,
+    0.5715429372112046
+  ],
+  "encoding": "RGB = three signed real eigenfunctions, normalized individually into [0,255]. Rows run y=-extent/2 to +extent/2.",
+  "mapping": "The real part of the coherent superposition drives depth; spatial differences drive tilt. Artistic relief, not fragment mechanics."
+}

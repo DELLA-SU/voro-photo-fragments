@@ -1,0 +1,4 @@
+qmsolve==2.0.0
+numpy<3
+scipy<2
+Pillow<12

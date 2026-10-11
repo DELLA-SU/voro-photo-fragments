@@ -36,3 +36,8 @@ button[aria-pressed=true]{background:#e9f0f3;border-color:#99b6c3;color:#3e687c}
  .control-title{font-size:11px}.control-title output{font-size:10px}
  .range-labels{font-size:9px}.button-icon{font-size:13px;margin-right:2px}
 }
+
+.actions{grid-template-columns:repeat(4,minmax(0,1fr))}
+.actions .save{grid-column:span 2}
+button:disabled{opacity:.5;cursor:wait}
+@media(max-width:680px){.actions{grid-template-columns:repeat(3,minmax(0,1fr))}.actions #wave{grid-column:1/-1}.actions .save{grid-column:auto}}

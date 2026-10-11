@@ -1,4 +1,4 @@
-import {FractureScene} from './scene3d.js';
+import {FractureScene} from './scene3d.js?v=wave-1';
 const W=736,H=737;
 const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
 const density=document.getElementById('density'),spread=document.getElementById('spread');
@@ -14,8 +14,12 @@ let geometry=[],levels=[],original=false,boundaries=false,custom=false,ready=fal
 let currentSpread=.5,targetSpread=.5,raf=0,transition=null,currentLevel=3,imageRequest=0;
 const names=['10 조각','20 조각','50 조각','100 조각','400 조각','1,600 조각','6,400 조각','14,400 조각'];
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
+const waveButton=document.getElementById('wave');
+let waveActive=false,waveRunning=false,waveTime=0,lastWaveTick=null;
 let scene3d=null;
 try{scene3d=new FractureScene();scene3d.bindDrag(canvas,()=>render());canvas.dataset.renderer='webgl';}catch(e){console.warn('3D unavailable; using textured Canvas fragments.',e);canvas.dataset.renderer='canvas2d';document.querySelector('.live').textContent='2D · WebGL 미지원';}
+if(scene3d){scene3d.loadWave().then(()=>{waveButton.disabled=false;waveButton.textContent='파동 모드 ≋';}).catch(()=>{waveButton.textContent='파동 불러오기 실패';waveButton.title='페이지를 새로고침해 주세요.';});}
+else {waveButton.textContent='파동 · 3D 필요';waveButton.title='WebGL을 지원하는 브라우저에서 사용할 수 있습니다.';}
 function makePhoto(image){
  photoCtx.clearRect(0,0,W,H);photoCtx.fillStyle='white';photoCtx.fillRect(0,0,W,H);
  const s=Math.min(W/image.naturalWidth,H/image.naturalHeight);
@@ -81,8 +85,8 @@ function render(now=performance.now()){
  if(original){ctx.drawImage(photo,0,0);return;}
  if(scene3d){
    if(transition){const t=Math.min(1,(now-transition.start)/transition.duration),e=1-Math.pow(1-t,3);currentSpread=transition.from+(targetSpread-transition.from)*e;if(t>=1){currentSpread=targetSpread;transition=null;}}
-   if(currentSpread<.0001&&Math.abs(scene3d.yaw)+Math.abs(scene3d.pitch)<.0001&&!boundaries){ctx.drawImage(photo,0,0);}
-   else ctx.drawImage(scene3d.draw(levels[currentLevel],currentSpread,boundaries),0,0,W,H);
+   if(currentSpread<.0001&&Math.abs(scene3d.yaw)+Math.abs(scene3d.pitch)<.0001&&!boundaries&&!waveActive){ctx.drawImage(photo,0,0);}
+   else ctx.drawImage(scene3d.draw(levels[currentLevel],currentSpread,boundaries,waveActive,waveTime),0,0,W,H);
    return;
  }
  if(transition){const t=Math.min(1,(now-transition.start)/transition.duration),e=1-Math.pow(1-t,3);currentSpread=transition.from+(targetSpread-transition.from)*e;
@@ -90,8 +94,10 @@ function render(now=performance.now()){
    if(t>=1){currentSpread=targetSpread;transition=null;}
  }else pieces(currentLevel,currentSpread);
 }
-function tick(now){raf=0;if(playing){const phase=((now-cycleStart)%5200)/5200;const pulse=(1-Math.cos(phase*Math.PI*2))/2;currentSpread=pulse;targetSpread=pulse;spread.value=Math.round(pulse*100);updateUI();}render(now);if((transition||playing)&&!original)raf=requestAnimationFrame(tick);}
-function stopPlayback(){playing=false;play.textContent='자동 재생 ▷';play.setAttribute('aria-pressed','false');}
+function tick(now){raf=0;
+ if(waveActive&&waveRunning&&!original){if(lastWaveTick!==null)waveTime+=Math.min(.05,(now-lastWaveTick)/1000);lastWaveTick=now;}else lastWaveTick=null;
+ if(playing){const phase=((now-cycleStart)%5200)/5200;const pulse=(1-Math.cos(phase*Math.PI*2))/2;currentSpread=pulse;targetSpread=pulse;spread.value=Math.round(pulse*100);updateUI();}render(now);if((transition||playing||(waveActive&&waveRunning))&&!original)raf=requestAnimationFrame(tick);}
+function stopPlayback(){playing=false;play.textContent=waveActive?(waveRunning?'파동 멈추기 Ⅱ':'파동 재생 ▷'):'자동 재생 ▷';play.setAttribute('aria-pressed',String(waveActive&&waveRunning));}
 function animateTo(amount,newLevel=currentLevel){
  if(!ready)return;if(raf)cancelAnimationFrame(raf);raf=0;
  stopPlayback();
@@ -107,15 +113,25 @@ function updateUI(){
  scatter.textContent=targetSpread>.01?'모이기 ↙':'흩어지기 ↗';scatter.setAttribute('aria-pressed',String(targetSpread>.01));
  document.getElementById('cell-count').textContent=original?'ORIGINAL PHOTO':`${levels[currentLevel]?.cells.length.toLocaleString()??'—'} CELLS`;
  document.getElementById('mode-label').textContent=original?'ORIGINAL PHOTOGRAPH':targetSpread>.01?'SCATTERED FRAGMENTS':'VORONOI PORTRAIT';
- canvas.setAttribute('aria-label',original?'선택한 원본 사진':`${levels[currentLevel]?.cells.length??0}개의 보로노이 조각, 흩어지는 거리 ${Math.round(targetSpread*100)}%`);
+ canvas.dataset.wave=String(waveActive);
+ canvas.setAttribute('aria-label',original?'선택한 원본 사진':`${levels[currentLevel]?.cells.length??0}개의 보로노이 조각, 흩어지는 거리 ${Math.round(targetSpread*100)}%${waveActive?", 파동 모드":""}`);
 }
 density.addEventListener('input',()=>animateTo([.8,.7,.6,.5,.4,.25,.1,0][Number(density.value)],Number(density.value)));
 spread.addEventListener('input',()=>animateTo(Number(spread.value)/100));
 scatter.addEventListener('click',()=>animateTo(targetSpread>.01?0:1));
 document.getElementById('reset-view').addEventListener('click',()=>{scene3d?.resetView();render();});
-play.addEventListener('click',()=>{if(!ready)return;if(playing){stopPlayback();return;}original=false;compare.setAttribute('aria-pressed','false');transition=null;playing=true;cycleStart=performance.now()-Math.acos(1-2*currentSpread)/(2*Math.PI)*5200;play.textContent='재생 멈추기 Ⅱ';play.setAttribute('aria-pressed','true');if(!raf)raf=requestAnimationFrame(tick);});
-edges.addEventListener('click',()=>{boundaries=!boundaries;edges.setAttribute('aria-pressed',String(boundaries));original=false;compare.setAttribute('aria-pressed','false');updateUI();render();if(transition&&!raf)raf=requestAnimationFrame(tick);});
-compare.addEventListener('click',()=>{if(!ready)return;stopPlayback();original=!original;compare.setAttribute('aria-pressed',String(original));if(raf)cancelAnimationFrame(raf);raf=0;transition=null;currentSpread=targetSpread;updateUI();render();});
+waveButton.addEventListener('click',()=>{
+ if(!ready||!scene3d)return;
+ waveActive=!waveActive;waveRunning=waveActive&&!reduceMotion.matches;lastWaveTick=null;
+ stopPlayback();waveButton.setAttribute('aria-pressed',String(waveActive));
+ original=false;compare.setAttribute('aria-pressed','false');updateUI();render();
+ if(waveRunning&&!raf)raf=requestAnimationFrame(tick);
+});
+play.addEventListener('click',()=>{if(!ready)return;
+ if(waveActive){waveRunning=!waveRunning;lastWaveTick=null;original=false;compare.setAttribute('aria-pressed','false');stopPlayback();updateUI();render();if(waveRunning&&!raf)raf=requestAnimationFrame(tick);return;}
+if(playing){stopPlayback();return;}original=false;compare.setAttribute('aria-pressed','false');transition=null;playing=true;cycleStart=performance.now()-Math.acos(1-2*currentSpread)/(2*Math.PI)*5200;play.textContent='재생 멈추기 Ⅱ';play.setAttribute('aria-pressed','true');if(!raf)raf=requestAnimationFrame(tick);});
+edges.addEventListener('click',()=>{boundaries=!boundaries;edges.setAttribute('aria-pressed',String(boundaries));original=false;compare.setAttribute('aria-pressed','false');updateUI();render();if((transition||(waveActive&&waveRunning))&&!raf)raf=requestAnimationFrame(tick);});
+compare.addEventListener('click',()=>{if(!ready)return;stopPlayback();original=!original;compare.setAttribute('aria-pressed',String(original));if(raf)cancelAnimationFrame(raf);raf=0;transition=null;currentSpread=targetSpread;lastWaveTick=null;updateUI();render();if(!original&&waveActive&&waveRunning&&!raf)raf=requestAnimationFrame(tick);});
 document.getElementById('upload').addEventListener('click',()=>fileInput.click());
 fileInput.addEventListener('change',async()=>{
  const file=fileInput.files[0];if(!file)return;if(!ready){fileStatus.textContent='조각 준비가 끝난 뒤 이미지를 다시 선택해 주세요.';fileInput.value='';return;}const request=++imageRequest;
