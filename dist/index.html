@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>작은 조각, 파란 고양이 — Voro++</title>
+<meta name="description" content="사진 속 파란 고양이를 Voro++ 보로노이 셀로 재현한 인터랙티브 모자이크.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><a class="brand" href="./" aria-label="처음으로"><span class="mark">◈</span> VORO <span class="edition">PHOTO STUDY / 001</span></a><a class="source" href="https://github.com/chr1shr/voro" target="_blank" rel="noopener">Voro++ ↗</a></header>
+<main>
+<section class="intro"><div class="eyebrow"><span></span> A LITTLE VORONOI EXPERIMENT</div><h1>작은 조각,<br><span id="portrait-title">파란 고양이</span><span class="dot">.</span></h1><p>사진의 질감을 그대로 간직한 작은 다각형들.<br>흩어지고, 다시 모여 하나의 얼굴이 됩니다.</p><div class="palette" aria-label="사진의 색상"><i style="--c:#8aaec3"></i><i style="--c:#bdd3dc"></i><i style="--c:#f0eedb"></i><i style="--c:#dcaeaa"></i><i style="--c:#493427"></i><span>COLORS FROM THE PHOTO</span></div><div class="upload-box"><button id="upload" type="button">＋ 이미지 바꾸기</button><button id="reset-image" type="button" hidden>고양이로 돌아가기</button><input id="image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" aria-label="새 이미지 첨부" hidden><p id="file-status" role="status">JPG · PNG · WEBP 등 / 최대 20MB<br>첨부 이미지는 이 브라우저에서만 사용됩니다.</p></div></section>
+<section class="art-section" aria-label="인터랙티브 3D 사진 조각"><div class="art-top"><span id="mode-label">VORONOI PORTRAIT</span><span class="live"><i></i> 3D · 드래그로 회전</span></div><div class="art"><canvas id="canvas" width="1472" height="1474" role="img" aria-label="보로노이 다각형으로 재현한 파란 고양이"></canvas><div id="loading" role="status">조각들을 모으는 중…</div><div id="error" role="alert" hidden>이미지를 불러오지 못했습니다. <button onclick="location.reload()">다시 시도</button></div></div><div class="art-bottom"><span>01 / BLUE CAT</span><span id="cell-count">— CELLS</span></div></section>
+<section class="controls" aria-label="조각 설정"><div class="sliders"><div class="density"><div class="control-title"><label for="density">조각 수 · 밀도</label><output id="density-value" for="density">10 조각</output></div><input id="density" type="range" min="0" max="7" step="1" value="0"><div class="range-labels"><span>10개 · 큰 조각</span><span>14,400개 · 작은 조각</span></div></div><div class="density"><div class="control-title"><label for="spread">흩어지는 거리</label><output id="spread-value" for="spread">15%</output></div><input id="spread" type="range" min="0" max="100" step="1" value="15"><div class="range-labels"><span>모이기</span><span>흩어지기</span></div></div></div><div class="actions"><button id="reset-view" type="button">정면 보기 ⤾</button><button id="play" aria-pressed="false">자동 재생 ▷</button><button id="scatter" aria-pressed="true">모이기 ↙</button><button id="edges" aria-pressed="false"><span class="button-icon">⬡</span> 조각 경계</button><button id="compare" aria-pressed="false"><span class="button-icon">◐</span> 원본 비교</button><button id="save" class="save">PNG 저장 <span>↓</span></button></div></section>
+</main>
+<footer><span>한 장의 사진, 서로 맞물리는 작은 조각들.</span><span>GEOMETRY BY <a href="https://github.com/chr1shr/voro" target="_blank" rel="noopener">VORO++</a><span class="separator">/</span><a href="VORO-LICENSE.txt">LICENSE</a></span></footer>
+<script src="vendor/polygon-clipping.js"></script>
+<script type="module" src="app.js"></script>
+</body></html>
