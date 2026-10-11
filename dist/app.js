@@ -1,4 +1,4 @@
-import {FractureScene} from './scene3d.js?v=wave-1';
+import {FractureScene} from './scene3d.js?v=wave-3';
 const W=736,H=737;
 const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
 const density=document.getElementById('density'),spread=document.getElementById('spread');
@@ -122,7 +122,7 @@ scatter.addEventListener('click',()=>animateTo(targetSpread>.01?0:1));
 document.getElementById('reset-view').addEventListener('click',()=>{scene3d?.resetView();render();});
 waveButton.addEventListener('click',()=>{
  if(!ready||!scene3d)return;
- waveActive=!waveActive;waveRunning=waveActive&&!reduceMotion.matches;lastWaveTick=null;
+ waveActive=!waveActive;waveRunning=waveActive;lastWaveTick=null;
  stopPlayback();waveButton.setAttribute('aria-pressed',String(waveActive));
  original=false;compare.setAttribute('aria-pressed','false');updateUI();render();
  if(waveRunning&&!raf)raf=requestAnimationFrame(tick);

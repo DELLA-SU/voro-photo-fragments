@@ -43,9 +43,14 @@ const vertexShader=`
  uniform float waveEnabled;
  uniform vec3 wavePhase;
  uniform vec3 waveWeights;
+ uniform float waveTime;
  float field(vec2 at){
   vec3 basis=texture2D(waveBasis,clamp(at,vec2(.005),vec2(.995))).rgb*2.-1.;
-  return dot(basis,waveWeights*cos(wavePhase));
+  float quantum=dot(basis,waveWeights*cos(wavePhase));
+  // Visible traveling rings are an artistic carrier modulated by the solved field.
+  float radius=length((at-.5)*vec2(1.,1.001));
+  float envelope=.45+.55*clamp(length(basis*waveWeights)*2.,0.,1.);
+  return quantum*.6+sin(radius*25.-waveTime*3.2)*envelope*.7;
  }
  mat3 rx(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,s,0.,-s,c);}
  mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
@@ -55,13 +60,54 @@ const vertexShader=`
   float crest=field(waveAt)*waveEnabled;
   float slopeX=(field(waveAt+vec2(.035,0.))-field(waveAt-vec2(.035,0.)))*waveEnabled;
   float slopeY=(field(waveAt+vec2(0.,.035))-field(waveAt-vec2(0.,.035)))*waveEnabled;
-  mat3 rotation=rz(cellRandom.z*.26*separation)*ry(cellRandom.y*.95*separation-slopeX*1.5)*rx(cellRandom.x*.85*separation+slopeY*1.5);
+  mat3 rotation=rz(cellRandom.z*.26*separation)*ry(cellRandom.y*.95*separation-slopeX*1.8)*rx(cellRandom.x*.85*separation+slopeY*1.8);
   vec3 p=position; p.z-=thickness*.5;
   p=rotation*p*(1.-.10*separation);p.z+=thickness*.5;
   p.xy+=cellCenter*(1.+.48*separation)+cellRandom.xy*30.*separation;
-  p.z+=cellRandom.z*145.*separation-thickness+crest*150.;
+  p.y+=crest*44.;
+  p.z+=cellRandom.z*145.*separation-thickness+crest*210.;
   vUv=uv;vFace=normal.z;vNormal=normalize(normalMatrix*rotation*normal);
   gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
+ }
+`;
+// A translucent relief makes the shared driving field visible around the photo.
+const waveFieldGLSL=vertexShader.slice(vertexShader.indexOf('uniform sampler2D waveBasis;'),vertexShader.indexOf(' mat3 rx'));
+const surfaceVertexShader=`
+ ${waveFieldGLSL}
+ varying vec2 waveUV;
+ varying float waveHeight;
+ void main(){
+  waveUV=position.xy/vec2(736.,737.)+.5;
+  waveHeight=field(waveUV);
+  vec3 p=position;
+  p.z=waveHeight*210.-110.;p.y+=waveHeight*44.;
+  gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
+ }
+`;
+const ringVertexShader=`
+ ${waveFieldGLSL}
+ attribute float ringOffset;
+ attribute float ringAngle;
+ varying vec2 waveUV;
+ varying float waveHeight;
+ void main(){
+  float radius=fract(waveTime*.16+ringOffset)*440.;
+  vec2 xy=vec2(cos(ringAngle),sin(ringAngle))*radius;
+  waveUV=xy/vec2(736.,737.)+.5;waveHeight=field(waveUV);
+  vec3 p=vec3(xy,waveHeight*210.-100.);p.y+=waveHeight*44.;
+  gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
+ }
+`;
+const surfaceFragmentShader=`
+ uniform float surfaceOpacity;
+ varying vec2 waveUV;
+ varying float waveHeight;
+ void main(){
+  float edge=1.-smoothstep(.34,.54,length((waveUV-.5)*vec2(1.,1.1)));
+  float crest=.5+.5*waveHeight;
+  gl_FragColor=vec4(mix(vec3(.025,.25,.52),vec3(.09,.50,.8),crest),edge*surfaceOpacity*(.55+.45*crest));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
  }
 `;
 const fragmentShader=`
@@ -86,8 +132,27 @@ export class FractureScene {
   this.renderer.setSize(W*2,H*2,false);this.renderer.setClearColor(0xffffff);this.renderer.outputColorSpace=THREE.SRGBColorSpace;
   this.scene=new THREE.Scene();this.root=new THREE.Group();this.scene.add(this.root);
   this.camera=new THREE.PerspectiveCamera(38,W/H,1,4000);this.distance=(H/2)/Math.tan(38*Math.PI/360);this.camera.position.z=this.distance;
-  this.material=new THREE.ShaderMaterial({vertexShader,fragmentShader,uniforms:{photograph:{value:null},separation:{value:0},thickness:{value:30},waveBasis:{value:null},waveEnabled:{value:0},wavePhase:{value:new THREE.Vector3()},waveWeights:{value:new THREE.Vector3()}},side:THREE.DoubleSide});
+  this.material=new THREE.ShaderMaterial({vertexShader,fragmentShader,uniforms:{photograph:{value:null},separation:{value:0},thickness:{value:30},waveBasis:{value:null},waveEnabled:{value:0},waveTime:{value:0},wavePhase:{value:new THREE.Vector3()},waveWeights:{value:new THREE.Vector3()}},side:THREE.DoubleSide});
   this.lineMaterial=new THREE.ShaderMaterial({vertexShader,fragmentShader:'void main(){gl_FragColor=vec4(.35,.47,.54,.42);}',uniforms:this.material.uniforms,transparent:true,depthWrite:false});
+  this.waveSurface=new THREE.Group();
+  const surfaceMaterial=new THREE.ShaderMaterial({vertexShader:surfaceVertexShader,fragmentShader:surfaceFragmentShader,uniforms:{...this.material.uniforms,surfaceOpacity:{value:.13}},transparent:true,depthWrite:false,side:THREE.DoubleSide});
+  const gridMaterial=new THREE.ShaderMaterial({vertexShader:surfaceVertexShader,fragmentShader:surfaceFragmentShader,uniforms:{...this.material.uniforms,surfaceOpacity:{value:.85}},transparent:true,depthWrite:false});
+  const surface=new THREE.Mesh(new THREE.PlaneGeometry(760,630,80,64),surfaceMaterial);surface.frustumCulled=false;this.waveSurface.add(surface);
+  const grid=[];
+  for(let row=0;row<=16;row++)for(let col=0;col<80;col++)grid.push(-380+col*9.5,-315+row*39.375,0,-380+(col+1)*9.5,-315+row*39.375,0);
+  for(let col=0;col<=20;col++)for(let row=0;row<64;row++)grid.push(-380+col*38,-315+row*9.84375,0,-380+col*38,-315+(row+1)*9.84375,0);
+  const gridGeometry=new THREE.BufferGeometry();gridGeometry.setAttribute('position',new THREE.Float32BufferAttribute(grid,3));
+  const gridLines=new THREE.LineSegments(gridGeometry,gridMaterial);gridLines.frustumCulled=false;this.waveSurface.add(gridLines);
+  const ringPositions=[],ringOffsets=[],ringAngles=[];
+  for(let ring=0;ring<6;ring++)for(let segment=0;segment<160;segment++)for(let endpoint=0;endpoint<2;endpoint++){
+   ringPositions.push(0,0,0);ringOffsets.push(ring/6);ringAngles.push((segment+endpoint)*Math.PI*2/160);
+  }
+  const ringGeometry=new THREE.BufferGeometry();
+  ringGeometry.setAttribute('position',new THREE.Float32BufferAttribute(ringPositions,3));
+  ringGeometry.setAttribute('ringOffset',new THREE.Float32BufferAttribute(ringOffsets,1));
+  ringGeometry.setAttribute('ringAngle',new THREE.Float32BufferAttribute(ringAngles,1));
+  const ringMaterial=new THREE.ShaderMaterial({vertexShader:ringVertexShader,fragmentShader:surfaceFragmentShader,uniforms:{...this.material.uniforms,surfaceOpacity:{value:.7}},transparent:true,depthWrite:false,depthTest:false});
+  const rings=new THREE.LineSegments(ringGeometry,ringMaterial);rings.frustumCulled=false;rings.renderOrder=2;this.waveSurface.add(rings);
   this.cache=new Map();this.yaw=0;this.pitch=0;this.texture=null;
  }
  async loadWave(){
@@ -98,7 +163,7 @@ export class FractureScene {
   this.material.uniforms.waveBasis.value=texture;
   const weights=model.basisScales.map((v,i)=>v*model.coefficients[i]);const sum=weights.reduce((a,b)=>a+b,0);
   this.material.uniforms.waveWeights.value.set(...weights.map(v=>v/sum));
-  this.waveEnergies=model.relativeEnergiesHartree;
+  this.waveEnergies=model.energiesHartree;
  }
  setPhoto(canvas){
   for(const item of this.cache.values()){item.mesh.geometry.dispose();item.lines.geometry.dispose();}
@@ -133,8 +198,9 @@ export class FractureScene {
   const item={mesh,lines,depth};this.cache.set(level.seeds,item);return item;
  }
  draw(level,amount,boundaries,wave=false,time=0){
-  const item=this.cache.get(level.seeds)||this.build(level);this.root.clear();this.root.add(item.mesh);if(boundaries)this.root.add(item.lines);
+  const item=this.cache.get(level.seeds)||this.build(level);this.root.clear();this.root.add(item.mesh);if(wave)this.root.add(this.waveSurface);if(boundaries)this.root.add(item.lines);
   this.material.uniforms.waveEnabled.value=wave?1:0;
+  this.material.uniforms.waveTime.value=time;
   if(this.waveEnergies)this.material.uniforms.wavePhase.value.set(...this.waveEnergies.map(e=>e*time*4));
   this.material.uniforms.separation.value=amount;this.material.uniforms.thickness.value=item.depth;
   this.root.rotation.set(this.pitch,this.yaw,0);this.root.scale.setScalar(1/(1+.54*amount));
