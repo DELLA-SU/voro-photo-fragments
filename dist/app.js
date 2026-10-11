@@ -11,7 +11,7 @@ const fragmentCtx=fragments.getContext('2d',{willReadFrequently:true});
 const play=document.getElementById('play');let playing=false,cycleStart=0;
 const defaultImage=new Image();defaultImage.src='reference.jpeg';
 let geometry=[],levels=[],original=false,boundaries=false,custom=false,ready=false;
-let currentSpread=.15,targetSpread=.15,raf=0,transition=null,currentLevel=0,imageRequest=0;
+let currentSpread=.5,targetSpread=.5,raf=0,transition=null,currentLevel=3,imageRequest=0;
 const names=['10 조각','20 조각','50 조각','100 조각','400 조각','1,600 조각','6,400 조각','14,400 조각'];
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
 let scene3d=null;
