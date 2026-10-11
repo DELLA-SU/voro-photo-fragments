@@ -1,4 +1,4 @@
-# 작은 조각, 파란 고양이
+# 바사삭!
 
 An interactive Canvas rendering of the supplied photograph using actual Voronoi cells computed with https://github.com/chr1shr/voro.
 

@@ -123,12 +123,12 @@ fileInput.addEventListener('change',async()=>{
  if(!file.type.startsWith('image/')){fileStatus.textContent='JPG, PNG, WEBP 등의 이미지 파일을 선택해 주세요.';fileInput.value='';return;}
  fileStatus.textContent='새 이미지를 준비하는 중…';const url=URL.createObjectURL(file),image=new Image();image.src=url;
  try{await image.decode();if(request!==imageRequest)return;custom=true;makePhoto(image);
-   animateTo(.15,Number(density.value));document.getElementById('portrait-title').textContent='나만의 사진';document.querySelector('.art-bottom>span').textContent='02 / YOUR PHOTO';
+   animateTo(.15,Number(density.value));document.querySelector('.art-bottom>span').textContent='02 / YOUR PHOTO';
    document.getElementById('reset-image').hidden=false;fileStatus.textContent=`${file.name} · 이 브라우저에서만 사용됩니다.`;
  }catch{if(request===imageRequest)fileStatus.textContent='이 이미지를 열 수 없습니다. JPG, PNG, WEBP 파일을 다시 선택해 주세요.';}
  finally{URL.revokeObjectURL(url);fileInput.value='';}
 });
-document.getElementById('reset-image').addEventListener('click',()=>{if(!ready)return;++imageRequest;custom=false;makePhoto(defaultImage);animateTo(.15,Number(density.value));document.getElementById('portrait-title').textContent='파란 고양이';document.querySelector('.art-bottom>span').textContent='01 / BLUE CAT';document.getElementById('reset-image').hidden=true;fileStatus.textContent='JPG · PNG · WEBP 등 / 최대 20MB. 첨부 이미지는 이 브라우저에서만 사용됩니다.';});
+document.getElementById('reset-image').addEventListener('click',()=>{if(!ready)return;++imageRequest;custom=false;makePhoto(defaultImage);animateTo(.15,Number(density.value));document.querySelector('.art-bottom>span').textContent='01 / BLUE CAT';document.getElementById('reset-image').hidden=true;fileStatus.textContent='최대 20MB · 이미지는 이 브라우저에서만 사용됩니다.';});
 document.getElementById('save').addEventListener('click',()=>{if(!ready)return;canvas.toBlob(blob=>{if(!blob)return;const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=original?'voro-original.png':'voro-fragments.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},'image/png');});
 Promise.all([fetch('cells.json').then(r=>{if(!r.ok)throw Error('cells');return r.json();}),defaultImage.decode()]).then(([data])=>{
  geometry=data.map(level=>({...level,cells:level.cells.map(([,p],i)=>{
