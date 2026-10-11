@@ -29,3 +29,7 @@ Generate `dist/wave-basis.png` and `dist/wave-model.json` with `scripts/generate
 QMsolve: https://github.com/quantum-visualizations/qmsolve (BSD-3-Clause; license in `dist/QMSOLVE-LICENSE.txt`). No Python server is required at runtime.
 
 Wave mode also renders a translucent cyan relief and curved grid from the same driving field around the photograph. This visible surface shares the shader time and coefficients with the rigid fragments and pauses/resumes with them.
+
+## Wave sound
+
+`소리 켜기` creates a Web Audio context only after an explicit click and enables wave mode if needed. Three quiet sine voices change pitch, amplitude, filter and stereo position from the same wave time and QMsolve field used for the animation. Volume starts at 35% and can be adjusted; page load is silent. Pausing the wave, comparing the original, turning the wave off or hiding the tab fades the audio out. Re-enabling resumes the selected sound setting. All sound is synthesized locally without downloads, microphone permissions or recordings. This is artistic sonification, not sound produced by quantum particles.

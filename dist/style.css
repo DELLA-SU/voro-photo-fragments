@@ -41,3 +41,9 @@ button[aria-pressed=true]{background:#e9f0f3;border-color:#99b6c3;color:#3e687c}
 .actions .save{grid-column:span 2}
 button:disabled{opacity:.5;cursor:wait}
 @media(max-width:680px){.actions{grid-template-columns:repeat(3,minmax(0,1fr))}.actions #wave{grid-column:1/-1}.actions .save{grid-column:auto}}
+
+.actions .save{grid-column:auto}
+.audio-volume{display:flex;align-items:center;gap:10px;margin-top:8px;color:#7e929e;font-size:10px}
+.audio-volume input{flex:1;min-width:0;height:14px;margin:0}
+.audio-volume output{width:32px;text-align:right}
+@media(max-width:680px){.actions #wave{grid-column:span 2}.audio-volume{margin-top:8px}}

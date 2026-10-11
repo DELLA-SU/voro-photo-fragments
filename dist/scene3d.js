@@ -164,6 +164,20 @@ export class FractureScene {
   const weights=model.basisScales.map((v,i)=>v*model.coefficients[i]);const sum=weights.reduce((a,b)=>a+b,0);
   this.material.uniforms.waveWeights.value.set(...weights.map(v=>v/sum));
   this.waveEnergies=model.energiesHartree;
+  this.waveWeights=weights.map(v=>v/sum);
+  const decoded=document.createElement('canvas');decoded.width=model.N;decoded.height=model.N;
+  const decodedContext=decoded.getContext('2d',{willReadFrequently:true});decodedContext.drawImage(texture.image,0,0);
+  this.wavePixels=decodedContext.getImageData(0,0,model.N,model.N).data;this.waveSize=model.N;
+ }
+ waveSignals(time){
+  if(!this.wavePixels)return [0,0,0];
+  return [[.35,.5],[.5,.5],[.65,.5]].map(([x,y])=>{
+   const offset=(Math.round(y*(this.waveSize-1))*this.waveSize+Math.round(x*(this.waveSize-1)))*4;
+   const basis=[0,1,2].map(i=>(this.wavePixels[offset+i]/255*2-1)*this.waveWeights[i]);
+   const quantum=basis.reduce((sum,v,i)=>sum+v*Math.cos(this.waveEnergies[i]*time*4),0);
+   const envelope=.45+.55*Math.min(1,Math.hypot(...basis)*2);
+   return Math.max(-1,Math.min(1,quantum*.6+Math.sin(Math.hypot(x-.5,(y-.5)*1.001)*25-time*3.2)*envelope*.7));
+  });
  }
  setPhoto(canvas){
   for(const item of this.cache.values()){item.mesh.geometry.dispose();item.lines.geometry.dispose();}

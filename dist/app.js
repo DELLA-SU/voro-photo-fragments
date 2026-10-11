@@ -1,4 +1,5 @@
-import {FractureScene} from './scene3d.js?v=wave-3';
+import {WaveAudio} from './wave-audio.js?v=sound-1';
+import {FractureScene} from './scene3d.js?v=sound-1';
 const W=736,H=737;
 const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
 const density=document.getElementById('density'),spread=document.getElementById('spread');
@@ -16,9 +17,18 @@ const names=['10 조각','20 조각','50 조각','100 조각','400 조각','1,60
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
 const waveButton=document.getElementById('wave');
 let waveActive=false,waveRunning=false,waveTime=0,lastWaveTick=null;
+const soundButton=document.getElementById('sound'),volume=document.getElementById('volume');
+const waveAudio=new WaveAudio();let soundEnabled=false;
+function syncSound(){
+ const active=soundEnabled&&waveActive&&waveRunning&&!original&&!document.hidden&&waveAudio.volume>0;
+ const rms=waveAudio.update(waveTime,scene3d?.waveSignals(waveTime)||[0,0,0],active);
+ soundButton.dataset.audioState=waveAudio.context?.state||'off';
+ soundButton.dataset.audioLevel=rms.toFixed(5);
+ soundButton.dataset.audible=String(active);
+}
 let scene3d=null;
 try{scene3d=new FractureScene();scene3d.bindDrag(canvas,()=>render());canvas.dataset.renderer='webgl';}catch(e){console.warn('3D unavailable; using textured Canvas fragments.',e);canvas.dataset.renderer='canvas2d';document.querySelector('.live').textContent='2D · WebGL 미지원';}
-if(scene3d){scene3d.loadWave().then(()=>{waveButton.disabled=false;waveButton.textContent='파동 모드 ≋';}).catch(()=>{waveButton.textContent='파동 불러오기 실패';waveButton.title='페이지를 새로고침해 주세요.';});}
+if(scene3d){scene3d.loadWave().then(()=>{waveButton.disabled=false;soundButton.disabled=false;waveButton.textContent='파동 모드 ≋';}).catch(()=>{waveButton.textContent='파동 불러오기 실패';waveButton.title='페이지를 새로고침해 주세요.';});}
 else {waveButton.textContent='파동 · 3D 필요';waveButton.title='WebGL을 지원하는 브라우저에서 사용할 수 있습니다.';}
 function makePhoto(image){
  photoCtx.clearRect(0,0,W,H);photoCtx.fillStyle='white';photoCtx.fillRect(0,0,W,H);
@@ -81,7 +91,7 @@ function pieces(levelIndex,amount,opacity=1){
  }ctx.restore();ctx.globalAlpha=1;
 }
 function render(now=performance.now()){
- if(!ready)return;ctx.setTransform(2,0,0,2,0,0);ctx.globalAlpha=1;ctx.fillStyle='white';ctx.fillRect(0,0,W,H);
+ if(!ready)return;syncSound();ctx.setTransform(2,0,0,2,0,0);ctx.globalAlpha=1;ctx.fillStyle='white';ctx.fillRect(0,0,W,H);
  if(original){ctx.drawImage(photo,0,0);return;}
  if(scene3d){
    if(transition){const t=Math.min(1,(now-transition.start)/transition.duration),e=1-Math.pow(1-t,3);currentSpread=transition.from+(targetSpread-transition.from)*e;if(t>=1){currentSpread=targetSpread;transition=null;}}
@@ -120,6 +130,19 @@ density.addEventListener('input',()=>animateTo([.8,.7,.6,.5,.4,.25,.1,0][Number(
 spread.addEventListener('input',()=>animateTo(Number(spread.value)/100));
 scatter.addEventListener('click',()=>animateTo(targetSpread>.01?0:1));
 document.getElementById('reset-view').addEventListener('click',()=>{scene3d?.resetView();render();});
+soundButton.addEventListener('click',async()=>{
+ if(!ready||!scene3d)return;
+ soundButton.disabled=true;
+ try{
+  if(!soundEnabled){await waveAudio.start();soundEnabled=true;if(!waveActive)waveButton.click();}
+  else soundEnabled=false;
+  soundButton.textContent=soundEnabled?'소리 끄기 ♪':'소리 켜기 ♪';
+  soundButton.setAttribute('aria-pressed',String(soundEnabled));syncSound();
+ }catch{soundEnabled=false;soundButton.textContent='소리 다시 켜기 ♪';soundButton.title='오디오를 시작하지 못했습니다. 다시 눌러 주세요.';}
+ finally{soundButton.disabled=false;}
+});
+volume.addEventListener('input',()=>{waveAudio.volume=Number(volume.value)/100;document.getElementById('volume-value').textContent=`${volume.value}%`;syncSound();});
+document.addEventListener('visibilitychange',()=>syncSound());
 waveButton.addEventListener('click',()=>{
  if(!ready||!scene3d)return;
  waveActive=!waveActive;waveRunning=waveActive;lastWaveTick=null;
